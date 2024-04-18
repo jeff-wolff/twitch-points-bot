@@ -18,25 +18,22 @@ const config = {
   message: '!gamble all', // gamble message to send
   slotMessage: '!slots all', // slots message to send
 
-  // DONT CHANGE BELOW
-  // UNLESS YOU KNOW WHAT YOU'RE DOING
 
-  minSlotMessageInterval: 4.5, // Minimum interval in minutes for slots
-  maxSlotMessageInterval: 7.5, // Maximum interval in minutes for slots
-  minMessageInterval: 10.11, // min minutes between messages sent when online
-  maxMessageInterval: 10.4 , // max minutes between message sent when online2
-  minMessageIntervalOffline: 34.5, // min minutes between messages sent when offline
-  maxMessageIntervalOffline: 44.5, // max minutes between message sent when offline
-
+  // DONT CHANGE BELOW UNLESS YOU KNOW WHAT YOU'RE DOIN
+  minViewerCount: 45, // mininum number of viewers for bot to be active
+  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
   gamblingEnabled: true, // Enable/disable gambling all together (wil still respond to duels)
   startSlots: true, // Set to true if you want to start slots, or false to disable it
-  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
+  minMessageInterval: 10.01, // min minutes between messages sent when online
+  maxMessageInterval: 10.25 , // max minutes between message sent when online2
+  minMessageIntervalOffline: 19.99, // min minutes between messages sent when offline
+  maxMessageIntervalOffline: 29.99, // max minutes between message sent when offline
+  minSlotMessageInterval: 4.5, // Minimum interval in minutes for slots
+  maxSlotMessageInterval: 7.5, // Maximum interval in minutes for slots
 
-  minViewerCount: 45, // mininum number of viewers for bot to be active
   balanceLogInterval: 15, // seconds between logging current balance
   viewerCountLogInterval: 15, // seconds between logging viewer count
   balanceFilePath: 'balance.json',
-  
   password: process.env.OAUTH_CODE, 
 };
 
