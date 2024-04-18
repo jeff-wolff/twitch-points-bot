@@ -13,5 +13,6 @@ module.exports = {
   GREEN: "\x1b[32m",      
   YELLOW: "\x1b[33m",     
   BLUE: "\x1b[34m",       
-  MAGENTA: "\x1b[35m",    
-};
+  MAGENTA: "\x1b[35m",   
+  GRAY: "\x1b[90m",    
+}

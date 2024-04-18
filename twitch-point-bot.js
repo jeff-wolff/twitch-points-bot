@@ -12,31 +12,32 @@ const fs = require('fs');
 const tmi = require('tmi.js');
 
 const config = {  
-  targetUser: 'bradley_dragon',
-  username: 'xhila',
-  message: '!gamble all', // message to send
-  
+  targetUser: 'bradley_dragon', // the channel
+  username: 'xhila', // your username
+
+  message: '!gamble all', // gamble message to send
+  slotMessage: '!slots all', // slots message to send
+
   // DONT CHANGE BELOW
   // UNLESS YOU KNOW WHAT YOU'RE DOING
-  password: process.env.OAUTH_CODE, 
 
-  minViewerCount: 10, // mininum number of viewers for bot to be active
+  minSlotMessageInterval: 4.5, // Minimum interval in minutes for slots
+  maxSlotMessageInterval: 7.5, // Maximum interval in minutes for slots
+  minMessageInterval: 10.11, // min minutes between messages sent when online
+  maxMessageInterval: 10.4 , // max minutes between message sent when online2
+  minMessageIntervalOffline: 34.5, // min minutes between messages sent when offline
+  maxMessageIntervalOffline: 44.5, // max minutes between message sent when offline
+
   gamblingEnabled: true, // Enable/disable gambling all together (wil still respond to duels)
-  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
-  
-  minMessageInterval: 6.5, // min minutes between messages sent when online
-  maxMessageInterval: 10.5, // max minutes between message sent when online
-  minMessageIntervalOffline: 60.5, // min minutes between messages sent when offline
-  maxMessageIntervalOffline: 64.5, // max minutes between message sent when offline
-
   startSlots: true, // Set to true if you want to start slots, or false to disable it
-  slotMessage: '!slots all',
-  slotMessageInterval: 8.5, // Interval in minutes for sending the slot message
+  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
 
-  balanceFilePath: 'balance.json',
+  minViewerCount: 45, // mininum number of viewers for bot to be active
   balanceLogInterval: 15, // seconds between logging current balance
   viewerCountLogInterval: 15, // seconds between logging viewer count
-
+  balanceFilePath: 'balance.json',
+  
+  password: process.env.OAUTH_CODE, 
 };
 
 const MIN_INTERVAL = config.minMessageInterval * 60;
@@ -62,11 +63,6 @@ const COLORS = {
   REVERSE: "\x1b[7m",     // Reverse background and foreground colors
   HIDDEN: "\x1b[8m",      // (usually same as background)
   STRIKETHROUGH: "\x1b[9m", 
-  RED: "\x1b[31m",        
-  GREEN: "\x1b[32m",      
-  YELLOW: "\x1b[33m",     
-  BLUE: "\x1b[34m",       
-  MAGENTA: "\x1b[35m",    
 };
 
 const options = {
@@ -83,10 +79,10 @@ loadBalance();
 
 // Events
 client.on('connected', (address, port) => {
-  customLog(`Connected to ${address}:${port}`, COLORS.GREEN);
+  customLog(`Connected to ${address}:${port}`, '#00FF00');
 
   if (config.gamblingEnabled) {
-    customLog(`Sent message to ${config.targetUser}'s chat: ${config.message}`, COLORS.MAGENTA); 
+    customLog(`Sent message to ${config.targetUser}'s chat: ${config.message}`, '#ff00ff'); 
     sendMessage(config.message);
     startGambling();
     if (config.startSlots) {
@@ -96,17 +92,16 @@ client.on('connected', (address, port) => {
   }
 });
 
-client.on('chat', (channel, user, msg, self) => {
-  // Log the params
+client.on('chat', (channel, userstate, message, self) => {
   // customLog(`DEBUG: ${channel}, ${JSON.stringify(user)}, ${msg}, ${self}`, '31');
-  const formattedMessage = `[${new Date().toLocaleTimeString()}] <${user['display-name']}>: ${msg}`;
-  console.log(formattedMessage); 
-
-  if (user && user.username) {
-    const username = user.username.toLowerCase(); 
-    checkAndAcceptDuel(username, msg);
+  const displayName = userstate['display-name'];
+  const userColor = userstate['color']; // This is the HEX color code
+  const formattedMessage = `${displayName}${COLORS.RESET}: ${message}`;
+  customLog(formattedMessage, userColor); // Use user's Twitch color
+  if (userstate && userstate.username) {
+    const username = userstate.username.toLowerCase(); 
+    checkAndAcceptDuel(username, message);
   }
-  
 });
 
 client.on('whisper', (from, userstate, message, self) => {
@@ -132,8 +127,8 @@ client.on('whisper', (from, userstate, message, self) => {
           losses++;
         }
 
-        customLog(`New balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses} | Session Profit: ${profit}`, COLORS.MAGENTA);
-        customLog(`Gamble outcome: ${outcome}`, outcome === 'won' ? COLORS.GREEN : COLORS.RED); 
+        customLog(`New balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses} | Session Profit: ${profit}`, '#ff00ff');
+        customLog(`Gamble outcome: ${outcome}`, outcome === 'won' ? '#00FF00' : '#FF0000'); 
         saveBalance();
       }
     }
@@ -143,7 +138,7 @@ client.on('whisper', (from, userstate, message, self) => {
 // Functions
 function startBot() {
   if (!botEnabled) {
-    customLog(`Bot started`, COLORS.GREEN);
+    customLog(`Bot started`, '#00FF00');
     botEnabled = true;
     client.connect();
   }
@@ -151,7 +146,7 @@ function startBot() {
 
 function stopBot() {
   if (botEnabled) {
-    customLog(`Bot stopped`, COLORS.RED);
+    customLog(`Bot stopped`, '#FF0000');
     botEnabled = false;
     client.disconnect();
   }
@@ -161,10 +156,10 @@ function sendMessage(message) {
   const escapedMessage = `${message} \u{E0000}`;
   client.say(config.targetUser, escapedMessage)
     .then(() => {
-      customLog(`Sent message to ${config.targetUser}'s chat: ${message}`, COLORS.MAGENTA); 
+      customLog(`Sent message to ${config.targetUser}'s chat: ${message}`, '#ff00ff'); 
     })
     .catch((err) => {
-      customLog('Error sending message:', COLORS.RED);
+      customLog('Error sending message:', '#FF0000');
       console.error(err);
     });
 }
@@ -189,7 +184,7 @@ function startGambling() {
         }
 
         if (countdown % 5 === 0 || countdown <= 10) {
-          customLog(`${minutes}m ${seconds}s`, COLORS.DIM, COLORS.YELLOW);
+          customLog(`${minutes}m ${seconds}s until gamble`, '#ffff00');
         }
         countdown -= 1;
         if (countdown <= 0) {
@@ -205,13 +200,13 @@ function startGambling() {
 }
 
 function startSlots() {
-    customLog(`Starting Slots...`, COLORS.GREEN);
+    customLog(`Starting Slots...`, '#0000FF');
 
     setTimeout(() => {
       sendMessage(config.slotMessage);
     }, 4000);
 
-    let slotInterval = config.slotMessageInterval * 60 * 1000; // Convert minutes to milliseconds
+    let slotInterval = getRandomInterval(config.minSlotMessageInterval * 1000 * 60, config.maxSlotMessageInterval * 1000 * 60);
 
     if (!botEnabled) {
       clearInterval(countdownInterval);
@@ -221,10 +216,13 @@ function startSlots() {
       if (botEnabled && config.gamblingEnabled) {
         const minutes = Math.floor(slotInterval / 60000); // Convert milliseconds to minutes
         const seconds = ((slotInterval % 60000) / 1000).toFixed(0); // Calculate remaining seconds
-        customLog(`${minutes}m ${seconds}s`, COLORS.DIM, COLORS.BLUE);
+
+        if (seconds % 5 === 0 || seconds <= 10) {
+          customLog(`${minutes}m ${seconds}s until slots`, '#00FFFF');
+        }
 
         if (slotInterval <= 0) {
-          customLog(`Sending slot message: ${config.slotMessage}`, COLORS.BLUE);
+          customLog(`Sending slot message: ${config.slotMessage}`, '#00FFFF');
           sendMessage(config.slotMessage);
           slotInterval = config.slotMessageInterval * 60 * 1000;
         }
@@ -246,7 +244,7 @@ function checkAndAcceptDuel(username, message) {
     setTimeout(() => {
       const response = `!accept`;
       client.say(config.targetUser, response);
-      customLog(`Responded to duel with ${response}`, COLORS.GREEN);
+      customLog(`Responded to duel with ${response}`, '#00FF00');
     }, delay * 1000);
   }
 }
@@ -360,8 +358,8 @@ function getViewerCount() {
 function logViewerCount() {
   getViewerCount()
     .then((viewerCount) => {
-      const color = viewerCount > 0 ? COLORS.GREEN : COLORS.RED;
-      customLog(`Viewer Count: ${viewerCount}`, COLORS.DIM, color); // Log the viewer count
+      const color = viewerCount > 0 ? '#00FF00' : '#FF0000';
+      customLog(`Viewer Count: ${viewerCount}`, color); // Log the viewer count
     })
     .catch((error) => {
       console.error('Error checking viewer count:', error);
@@ -378,7 +376,7 @@ function loadBalance() {
       currentBalance = parsedData.balance;
       wins = parsedData.wins || 0; // Load wins from the file or initialize to 0
       losses = parsedData.losses || 0; // Load losses from the file or initialize to 0
-      customLog(`Loaded balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses}`, COLORS.MAGENTA);
+      customLog(`Loaded balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses}`, '#ff00ff');
     }
   } catch (err) {
     console.error('Error loading balance:', err);
@@ -388,14 +386,14 @@ function loadBalance() {
 function saveBalance() {
   const data = JSON.stringify({ balance: currentBalance, wins, losses });
   fs.writeFileSync(config.balanceFilePath, data, 'utf8');
-  customLog(`Saved balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses}`, COLORS.MAGENTA);
+  customLog(`Saved balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses}`, '#ff00ff');
 }
 
 function startBalanceLog() {
   setInterval(() => {
     const winLossPercentage =  ((wins / (wins + losses)) * 100).toFixed(2);
 
-    customLog(`${currentBalance.toLocaleString()} | Total W/L: ${wins}/${losses} | Total W/L %: ${winLossPercentage}% | Session Profit: ${profit}`, COLORS.MAGENTA); 
+    customLog(`${currentBalance.toLocaleString()} | Total W/L: ${wins}/${losses} | Total W/L %: ${winLossPercentage}% | Session Profit: ${profit}`, '#ff00ff'); 
   }, config.balanceLogInterval * 1000);
 }
 
@@ -406,11 +404,25 @@ process.on('SIGINT', () => {
 });
 
 // Utility functions
-function customLog(message, ...colors) {
-  const colorCodes = colors.join('');
-  console.log(`[${new Date().toLocaleTimeString()}] ${colorCodes}${message}${COLORS.RESET}`);
+function customLog(message, hexColor = "#FFFFFF") { 
+  let currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  let timeColor = "\x1b[90m"; // ANSI code for dark gray
+  let colorPrefix = ``;
+  if (hexColor) {
+      const { r, g, b } = hexToRgb(hexColor) || { r: 255, g: 255, b: 255 }; 
+      colorPrefix = `\x1b[38;2;${r};${g};${b}m`;
+  }
+  console.log(`${timeColor}${currentTime} ${colorPrefix}${message}${COLORS.RESET}`);
 }
 
+function hexToRgb(hex) {
+  if (!hex) return null;
+  let r = parseInt(hex.slice(1, 3), 16);
+  let g = parseInt(hex.slice(3, 5), 16);
+  let b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
 function getRandomInterval(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
