@@ -29,6 +29,7 @@ curl -X POST 'https://id.twitch.tv/oauth2/token' \
   username: 'your_username',
   targetUser: 'channel_username',
   message: '!gamble all', // message to send
+  slotMessage: '!slots all', // alt message to send
 ```
 
 ### Start bot

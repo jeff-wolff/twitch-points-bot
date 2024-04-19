@@ -1,65 +1,20 @@
-// Twitch Gambling Bot: Utilizes tmi.js (a twitch js library), and configures the bot's behavior, 
-// It periodically checks the streamer's status and viewer count using the Twitch API. 
-// And uses minimum viewer count requirements to determine if the bot is online.
-// There's a feature to set different chat message intervals for online and offline gambling.
-// There is also a separate chat interval for the "!slots" command
-// Tracks the user's current points balance and logs chat interactions. 
-// The bot also accepts duels from other Twitch users. 
-
 require('dotenv').config();
-const https = require('https');
-const fs = require('fs');
+const config = require('./config');
+const { loadBalance, saveBalance, startBalanceLog } = require('./balanceManager');
+const { customLog, getRandomInterval, COLORS } = require('./utils');
 const tmi = require('tmi.js');
+const https = require('https');
 
-const config = {  
-  targetUser: 'bradley_dragon', // the channel
-  
-  minViewerCount: 45, // mininum number of viewers for bot to be active
-  
-  message: '!gamble all', // gamble message to send
-
-  gamblingEnabled: true, // Enable/disable gambling all together (wil still respond to duels)
-  minMessageInterval: 10.01, // min minutes between messages sent when online
-  maxMessageInterval: 10.25 , // max minutes between message sent when online
-  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
-  minMessageIntervalOffline: 19.99, // min minutes between messages sent when offline
-  maxMessageIntervalOffline: 29.99, // max minutes between message sent when offline
-  startSlots: true, // Set to true if you want to start slots, or false to disable it
-  slotMessage: '!slots all', // slots message to send
-  minSlotMessageInterval: 10.51, // Minimum interval in minutes for slots
-  maxSlotMessageInterval: 12.25, // Maximum interval in minutes for slots
-  
-  username: 'xhila', // your username
-  
-  // DONT CHANGE BELOW UNLESS YOU KNOW WHAT YOU'RE DOIN
-  balanceFilePath: 'balance.json',
-  balanceLogInterval: 15, // seconds between logging current balance
-  viewerCountLogInterval: 15, // seconds between logging viewer count
-  password: process.env.OAUTH_CODE, 
-};
-
-const VIEWER_COUNT_LOG_INTERVAL = config.viewerCountLogInterval;
-
-let currentBalance = 0;
-let profit = 0; 
 let botEnabled = false;
-let wins = 0;
-let losses = 0; 
+
+const balanceInfo = {
+  currentBalance: 0,
+  wins: 0,
+  losses: 0,
+  profit: 0
+};
 
 const intervals = {};
-
-// ANSI Color Constants
-const COLORS = {
-  RESET: "\x1b[0m",       // Reset all formatting
-  BOLD: "\x1b[1m",        
-  DIM: "\x1b[2m",         
-  ITALIC: "\x1b[3m",      
-  UNDERLINE: "\x1b[4m",   
-  BLINK: "\x1b[5m",       
-  REVERSE: "\x1b[7m",     // Reverse background and foreground colors
-  HIDDEN: "\x1b[8m",      // (usually same as background)
-  STRIKETHROUGH: "\x1b[9m", 
-};
 
 const options = {
   options: { debug: false },
@@ -71,7 +26,7 @@ const options = {
 const client = new tmi.client(options);
 
 // Call loadBalance to initialize currentBalance, wins, and losses from balance.json
-loadBalance();
+loadBalance(balanceInfo);
 
 // Events
 client.on('connected', (address, port) => {
@@ -84,7 +39,7 @@ client.on('connected', (address, port) => {
     if (config.startSlots) {
         startSlots();
     }
-    startBalanceLog();
+    startBalanceLog(balanceInfo);
   }
 });
 
@@ -108,24 +63,24 @@ client.on('whisper', (from, userstate, message, self) => {
       const lastNumber = parseInt(numbers[numbers.length - 1], 10);
       if (!isNaN(lastNumber)) {
         // Calculate points earned or lost in this message
-        const pointsChange = lastNumber - currentBalance;
+        const pointsChange = lastNumber - balanceInfo.currentBalance;
 
         // Update currentBalance and previousBalance
-        currentBalance = lastNumber;
+        balanceInfo.currentBalance = lastNumber;
 
         // Update the rolling total based on pointsChange
-        profit += pointsChange;
+        balanceInfo.profit += pointsChange;
 
         // Update wins and losses
         if (outcome === 'won') {
-          wins++;
+          balanceInfo.wins++;
         } else if (outcome === 'lost') {
-          losses++;
+          balanceInfo.losses++;
         }
 
-        customLog(`New balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses} | Session Profit: ${profit}`, '#ff00ff');
-        customLog(`Gamble outcome: ${outcome}`, outcome === 'won' ? '#00FF00' : '#FF0000'); 
-        saveBalance();
+        customLog(`New balance: ${balanceInfo.currentBalance.toLocaleString()} points | Total W/L: ${balanceInfo.wins}/${balanceInfo.losses} | Session Profit: ${balanceInfo.profit}`, '#ff00ff');
+        customLog(`Gamble outcome: ${outcome}`, outcome === 'won' ? '#00FF00' : '#FF0000');
+        saveBalance(balanceInfo);
       }
     }
   }
@@ -177,7 +132,7 @@ function startCountdown(action, message, minInterval, maxInterval, color) {
               // console.log(`[${action.toUpperCase()}] Countdown: ${minutes}m ${seconds}s remaining.`);
 
               if ((countdown > 10 && countdown % 5 === 0) || countdown <= 10) {
-                  customLog(`${minutes}m ${seconds}s until next ${action}`, color);
+                  customLog(`[${action}] ${minutes}m ${seconds}s`, color);
               }
 
               if (countdown < 0) {
@@ -202,8 +157,8 @@ function startGambling() {
 function startSlots() {
   setTimeout(() => {
       sendMessage(config.slotMessage);
-      startCountdown("slots", config.slotMessage, config.minSlotMessageInterval, config.maxSlotMessageInterval, '#00FFFF');
-  }, 3000); // Delay to prevent any overlap or conflict
+      startCountdown("slots", config.slotMessage, config.minSlotMessageInterval, config.maxSlotMessageInterval, '#0000FF');
+  }, 3000); // Delay to prevent any overlap or conflict with Gambling
 }
 
 function checkAndAcceptDuel(username, message) {
@@ -340,65 +295,11 @@ function logViewerCount() {
       console.error('Error checking viewer count:', error);
     });
 }
-setInterval(logViewerCount, VIEWER_COUNT_LOG_INTERVAL * 1000);
+setInterval(logViewerCount, config.viewerCountLogInterval * 1000);
 
-// Balance functions
-function loadBalance() {
-  try {
-    const data = fs.readFileSync(config.balanceFilePath, 'utf8');
-    const parsedData = JSON.parse(data);
-    if (parsedData.balance !== undefined) {
-      currentBalance = parsedData.balance;
-      wins = parsedData.wins || 0; // Load wins from the file or initialize to 0
-      losses = parsedData.losses || 0; // Load losses from the file or initialize to 0
-      customLog(`Loaded balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses}`, '#ff00ff');
-    }
-  } catch (err) {
-    console.error('Error loading balance:', err);
-  }
-}
-
-function saveBalance() {
-  const data = JSON.stringify({ balance: currentBalance, wins, losses });
-  fs.writeFileSync(config.balanceFilePath, data, 'utf8');
-  customLog(`Saved balance: ${currentBalance.toLocaleString()} points | Total W/L: ${wins}/${losses}`, '#ff00ff');
-}
-
-function startBalanceLog() {
-  setInterval(() => {
-    const winLossPercentage =  ((wins / (wins + losses)) * 100).toFixed(2);
-
-    customLog(`${currentBalance.toLocaleString()} | Total W/L: ${wins}/${losses} | Total W/L %: ${winLossPercentage}% | Session Profit: ${profit}`, '#ff00ff'); 
-  }, config.balanceLogInterval * 1000);
-}
 
 process.on('SIGINT', () => {
   // App termination to save the balance
-  saveBalance();
+  saveBalance(balanceInfo);
   process.exit();
 });
-
-// Utility functions
-function customLog(message, hexColor = "#FFFFFF") { 
-  let currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  let timeColor = "\x1b[90m"; // ANSI code for dark gray
-  let colorPrefix = ``;
-  if (hexColor) {
-      const { r, g, b } = hexToRgb(hexColor) || { r: 255, g: 255, b: 255 }; 
-      colorPrefix = `\x1b[38;2;${r};${g};${b}m`;
-  }
-  console.log(`${timeColor}${currentTime} ${colorPrefix}${message}${COLORS.RESET}`);
-}
-
-function hexToRgb(hex) {
-  if (!hex) return null;
-  let r = parseInt(hex.slice(1, 3), 16);
-  let g = parseInt(hex.slice(3, 5), 16);
-  let b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
-function getRandomInterval(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
