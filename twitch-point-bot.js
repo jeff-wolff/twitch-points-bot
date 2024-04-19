@@ -13,34 +13,31 @@ const tmi = require('tmi.js');
 
 const config = {  
   targetUser: 'bradley_dragon', // the channel
-  username: 'xhila', // your username
-
-  message: '!gamble all', // gamble message to send
-  slotMessage: '!slots all', // slots message to send
-
-
-  // DONT CHANGE BELOW UNLESS YOU KNOW WHAT YOU'RE DOIN
+  
   minViewerCount: 45, // mininum number of viewers for bot to be active
-  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
+  
+  message: '!gamble all', // gamble message to send
+
   gamblingEnabled: true, // Enable/disable gambling all together (wil still respond to duels)
-  startSlots: true, // Set to true if you want to start slots, or false to disable it
   minMessageInterval: 10.01, // min minutes between messages sent when online
-  maxMessageInterval: 10.25 , // max minutes between message sent when online2
+  maxMessageInterval: 10.25 , // max minutes between message sent when online
+  offlineGambling: true, // Enable/disable offline gambling, buggy keep at true
   minMessageIntervalOffline: 19.99, // min minutes between messages sent when offline
   maxMessageIntervalOffline: 29.99, // max minutes between message sent when offline
-  minSlotMessageInterval: 4.5, // Minimum interval in minutes for slots
-  maxSlotMessageInterval: 7.5, // Maximum interval in minutes for slots
-
+  startSlots: true, // Set to true if you want to start slots, or false to disable it
+  slotMessage: '!slots all', // slots message to send
+  minSlotMessageInterval: 10.51, // Minimum interval in minutes for slots
+  maxSlotMessageInterval: 12.25, // Maximum interval in minutes for slots
+  
+  username: 'xhila', // your username
+  
+  // DONT CHANGE BELOW UNLESS YOU KNOW WHAT YOU'RE DOIN
+  balanceFilePath: 'balance.json',
   balanceLogInterval: 15, // seconds between logging current balance
   viewerCountLogInterval: 15, // seconds between logging viewer count
-  balanceFilePath: 'balance.json',
   password: process.env.OAUTH_CODE, 
 };
 
-const MIN_INTERVAL = config.minMessageInterval * 60;
-const MAX_INTERVAL = config.maxMessageInterval * 60;
-const MIN_INTERVAL_OFFLINE = config.minMessageIntervalOffline * 60;
-const MAX_INTERVAL_OFFLINE = config.maxMessageIntervalOffline * 60;
 const VIEWER_COUNT_LOG_INTERVAL = config.viewerCountLogInterval;
 
 let currentBalance = 0;
@@ -48,6 +45,8 @@ let profit = 0;
 let botEnabled = false;
 let wins = 0;
 let losses = 0; 
+
+const intervals = {};
 
 // ANSI Color Constants
 const COLORS = {
@@ -83,7 +82,7 @@ client.on('connected', (address, port) => {
     sendMessage(config.message);
     startGambling();
     if (config.startSlots) {
-      startSlots();
+        startSlots();
     }
     startBalanceLog();
   }
@@ -153,80 +152,137 @@ function sendMessage(message) {
   const escapedMessage = `${message} \u{E0000}`;
   client.say(config.targetUser, escapedMessage)
     .then(() => {
+      console.log(`Message sent successfully to ${config.targetUser}: ${message}`);
       customLog(`Sent message to ${config.targetUser}'s chat: ${message}`, '#ff00ff'); 
     })
     .catch((err) => {
+      console.error(`Error sending message to ${config.targetUser}: ${err.message}`);
       customLog('Error sending message:', '#FF0000');
       console.error(err);
     });
 }
 
+// Test sending the slots message directly
+function testSendSlotsMessage() {
+  console.log("Directly testing slots message sending...");
+  sendMessage(config.slotMessage);
+}
+
+
+function startCountdown(action, message, minInterval, maxInterval, color) {
+  getStreamStatus().then(({ online }) => {
+          const intervalInSeconds = online ? getRandomInterval(minInterval * 60, maxInterval * 60) : getRandomInterval(minInterval * 60, maxInterval * 60);
+          let countdown = Math.floor(intervalInSeconds);
+
+          console.log(`Starting countdown for ${action} at ${countdown} seconds.`);
+
+          clearInterval(intervals[action]); // Ensure no previous interval is running
+
+          intervals[action] = setInterval(() => {
+              const minutes = Math.floor(countdown / 60);
+              const seconds = countdown % 60;
+              // console.log(`[${action.toUpperCase()}] Countdown: ${minutes}m ${seconds}s remaining.`);
+
+              if ((countdown > 10 && countdown % 5 === 0) || countdown <= 10) {
+                  customLog(`${minutes}m ${seconds}s until next ${action}`, color);
+              }
+
+              if (countdown < 0) {
+                  clearInterval(intervals[action]);
+                  console.log(`Countdown finished for ${action}. Sending message: ${message}`);
+                  sendMessage(message);
+                  startCountdown(action, message, minInterval, maxInterval, color); // Restart countdown
+              } else {
+                countdown -= 1;
+              }
+          }, 1000);
+      })
+      .catch((error) => {
+          console.error('Error checking streamer status:', error);
+      });
+}
+
 function startGambling() {
-  let randomInterval;
-  getStreamStatus()
-    .then(({ online }) => {
-      if (online) {
-        randomInterval = getRandomInterval(MIN_INTERVAL, MAX_INTERVAL);
-      } else {
-        randomInterval = getRandomInterval(MIN_INTERVAL_OFFLINE, MAX_INTERVAL_OFFLINE);
-      }
-      let countdown = randomInterval;
-
-      const countdownInterval = setInterval(() => {
-        const minutes = Math.floor(countdown / 60);
-        const seconds = countdown % 60;
-
-        if (!botEnabled) {
-          clearInterval(countdownInterval);
-        }
-
-        if (countdown % 5 === 0 || countdown <= 10) {
-          customLog(`${minutes}m ${seconds}s until gamble`, '#ffff00');
-        }
-        countdown -= 1;
-        if (countdown <= 0) {
-          clearInterval(countdownInterval);
-          sendMessage(config.message);
-          startGambling();
-        }
-      }, 1000);
-    })
-    .catch((error) => {
-      console.error('Error checking streamer status:', error);
-    });
+  startCountdown("gamble", config.message, config.minMessageInterval, config.maxMessageInterval, '#ffff00');
 }
 
 function startSlots() {
-    customLog(`Starting Slots...`, '#0000FF');
-
-    setTimeout(() => {
-      sendMessage(config.slotMessage);
-    }, 4000);
-
-    let slotInterval = getRandomInterval(config.minSlotMessageInterval * 1000 * 60, config.maxSlotMessageInterval * 1000 * 60);
-
-    if (!botEnabled) {
-      clearInterval(countdownInterval);
-    }
-
-    const countdownInterval = setInterval(() => {
-      if (botEnabled && config.gamblingEnabled) {
-        const minutes = Math.floor(slotInterval / 60000); // Convert milliseconds to minutes
-        const seconds = ((slotInterval % 60000) / 1000).toFixed(0); // Calculate remaining seconds
-
-        if (seconds % 5 === 0 || seconds <= 10) {
-          customLog(`${minutes}m ${seconds}s until slots`, '#00FFFF');
-        }
-
-        if (slotInterval <= 0) {
-          customLog(`Sending slot message: ${config.slotMessage}`, '#00FFFF');
-          sendMessage(config.slotMessage);
-          slotInterval = config.slotMessageInterval * 60 * 1000;
-        }
-        slotInterval -= 1000;
-      }
-    }, 1000);
+  console.log("Preparing to start slots...");
+  setTimeout(() => {
+      console.log("Directly testing slots message sending...");
+      testSendSlotsMessage(); // Directly test sending the slots message
+      startCountdown("slots", config.slotMessage, config.minSlotMessageInterval, config.maxSlotMessageInterval, '#00FFFF');
+  }, 3000); // Delay to prevent any overlap or conflict
 }
+
+
+// function startGambling() {
+//   getStreamStatus()
+//     .then(({ online }) => {
+//       const intervalInSeconds = online ? getRandomInterval(MIN_INTERVAL, MAX_INTERVAL) : getRandomInterval(MIN_INTERVAL_OFFLINE, MAX_INTERVAL_OFFLINE);
+//       let countdown = Math.floor(intervalInSeconds); // Ensure it's an integer
+
+//       console.log(`Starting countdown at ${countdown} seconds.`); // Initial countdown time
+
+//       const countdownInterval = setInterval(() => {
+//         const minutes = Math.floor(countdown / 60);
+//         const seconds = countdown % 60;
+
+//         // Debugging output to verify interval functionality
+//         console.log(`Debug: ${countdown} seconds left (${minutes}m ${seconds}s)`);
+
+
+//         // Log at specific intervals: every 5 seconds when more than 10 seconds remain, every second in the last 10 seconds.
+//         if ((countdown > 10 && countdown % 5 === 0) || countdown <= 10) {
+//           customLog(`${minutes}m ${seconds}s until next gamble`, '#ffff00');
+//         }
+
+//         countdown -= 1;
+
+//        // If countdown ends, clear interval, send message, and restart the gambling process.
+//         if (countdown < 0) {
+//           clearInterval(countdownInterval);
+//           sendMessage(config.message); // Send Gamble message
+//           startGambling(); // Restart gambling process
+//         }
+//       }, 1000);
+//     })
+//     .catch((error) => {
+//       console.error('Error checking streamer status:', error);
+//     });
+// }
+
+// function startSlots() {
+//     customLog(`Starting Slots...`, '#0000FF');
+
+//     setTimeout(() => {
+//       sendMessage(config.slotMessage);
+//     }, 4000);
+
+//     let slotInterval = getRandomInterval(config.minSlotMessageInterval * 1000 * 60, config.maxSlotMessageInterval * 1000 * 60);
+
+//     if (!botEnabled) {
+//       clearInterval(countdownInterval);
+//     }
+
+//     const countdownInterval = setInterval(() => {
+//       if (botEnabled && config.gamblingEnabled) {
+//         const minutes = Math.floor(slotInterval / 60000); // Convert milliseconds to minutes
+//         const seconds = ((slotInterval % 60000) / 1000).toFixed(0); // Calculate remaining seconds
+
+//         if (seconds % 5 === 0 || seconds <= 10) {
+//           customLog(`${minutes}m ${seconds}s until slots`, '#00FFFF');
+//         }
+
+//         if (slotInterval <= 0) {
+//           customLog(`Sending slot message: ${config.slotMessage}`, '#00FFFF');
+//           sendMessage(config.slotMessage);
+//           slotInterval = config.slotMessageInterval * 60 * 1000;
+//         }
+//         slotInterval -= 1000;
+//       }
+//     }, 1000);
+// }
 
 function checkAndAcceptDuel(username, message) {
   const lowercaseMsg = message.toLowerCase();
@@ -419,6 +475,7 @@ function hexToRgb(hex) {
   let b = parseInt(hex.slice(5, 7), 16);
   return { r, g, b };
 }
+
 function getRandomInterval(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
