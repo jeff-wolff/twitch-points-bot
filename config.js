@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const config = {
   username: 'xhila', // your username
   targetUser: 'bradley_dragon', // the channel you're chatting in

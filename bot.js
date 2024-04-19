@@ -3,7 +3,7 @@ const config = require('./config');
 const { loadBalance, saveBalance, startBalanceLog } = require('./balanceManager');
 const { customLog, getRandomInterval, COLORS } = require('./utils');
 const tmi = require('tmi.js');
-const https = require('https');
+const twitchManager = require('./twitchManager');
 
 let botEnabled = false;
 
@@ -32,9 +32,7 @@ loadBalance(balanceInfo);
 client.on('connected', (address, port) => {
   customLog(`Connected to ${address}:${port}`, '#00FF00');
 
-  if (config.gamblingEnabled) {
-    customLog(`Sent message to ${config.targetUser}'s chat: ${config.message}`, '#ff00ff'); 
-    sendMessage(config.message);
+  if (config.gamblingEnabled) {    
     startGambling();
     if (config.startSlots) {
         startSlots();
@@ -100,15 +98,25 @@ function stopBot() {
     customLog(`Bot stopped`, '#FF0000');
     botEnabled = false;
     client.disconnect();
+
+    // Clear all running intervals
+    Object.keys(intervals).forEach(action => {
+      clearInterval(intervals[action]);
+      customLog(`Cleared interval for ${action}`, '#FF0000');
+    });
+    intervals = {};
+
   }
 }
+setInterval(() => twitchManager.checkStreamerStatus(config, startBot, stopBot), 1000);
+setInterval(() => twitchManager.logViewerCount(config), config.viewerCountLogInterval * 1000);
 
 function sendMessage(message) {
   const escapedMessage = `${message} \u{E0000}`;
+  customLog(`Sending message to ${config.targetUser}'s chat: ${message}`, '#ff00ff'); 
   client.say(config.targetUser, escapedMessage)
     .then(() => {
-      console.log(`Message sent successfully to ${config.targetUser}: ${message}`);
-      customLog(`Sent message to ${config.targetUser}'s chat: ${message}`, '#ff00ff'); 
+      customLog(`Message sent successfully to ${config.targetUser}'s chat: ${message}`, '#ff00ff'); 
     })
     .catch((err) => {
       console.error(`Error sending message to ${config.targetUser}: ${err.message}`);
@@ -129,7 +137,6 @@ function startCountdown(action, message, minInterval, maxInterval, color) {
           intervals[action] = setInterval(() => {
               const minutes = Math.floor(countdown / 60);
               const seconds = countdown % 60;
-              // console.log(`[${action.toUpperCase()}] Countdown: ${minutes}m ${seconds}s remaining.`);
 
               if ((countdown > 10 && countdown % 5 === 0) || countdown <= 10) {
                   customLog(`[${action}] ${minutes}m ${seconds}s`, color);
@@ -137,7 +144,6 @@ function startCountdown(action, message, minInterval, maxInterval, color) {
 
               if (countdown < 0) {
                   clearInterval(intervals[action]);
-                  console.log(`Countdown finished for ${action}. Sending message: ${message}`);
                   sendMessage(message);
                   startCountdown(action, message, minInterval, maxInterval, color); // Restart countdown
               } else {
@@ -151,15 +157,17 @@ function startCountdown(action, message, minInterval, maxInterval, color) {
 }
 
 function startGambling() {
+  sendMessage(config.message);
   startCountdown("gamble", config.message, config.minMessageInterval, config.maxMessageInterval, '#ffff00');
 }
 
 function startSlots() {
-  setTimeout(() => {
+  setTimeout(() => {      
       sendMessage(config.slotMessage);
       startCountdown("slots", config.slotMessage, config.minSlotMessageInterval, config.maxSlotMessageInterval, '#0000FF');
   }, 3000); // Delay to prevent any overlap or conflict with Gambling
 }
+
 
 function checkAndAcceptDuel(username, message) {
   const lowercaseMsg = message.toLowerCase();
@@ -178,125 +186,6 @@ function checkAndAcceptDuel(username, message) {
     }, delay * 1000);
   }
 }
-
-function getStreamStatus() {
-  const twitchApiEndpoint = `https://api.twitch.tv/helix/streams?user_login=${config.targetUser}`;
-
-  const options = {
-    headers: {
-      'Client-Id': process.env.TWITCH_CLIENT_ID,
-      'Authorization': `Bearer ${process.env.TWITCH_AUTHORIZATION}`,
-    },
-  };
-
-  return new Promise((resolve, reject) => {
-    https.get(twitchApiEndpoint, options, (response) => {
-      let data = '';
-
-      response.on('data', (chunk) => {
-        data += chunk;
-      });
-      
-
-      response.on('end', () => {
-        try {
-          const streamData = JSON.parse(data);
-          // console.log(streamData)
-          if (streamData.data && streamData.data.length > 0) {
-            // Streamer is online
-            const viewerCount = streamData.data[0].viewer_count;
-            resolve({ online: true, viewerCount });
-          } else {
-            // Streamer is offline
-            
-            resolve({ online: false });
-          }
-        } catch (error) {
-          reject(error);
-        }
-      });
-    }).on('error', (error) => {
-      reject(error);
-    });
-  });
-}
-
-function checkStreamerStatus() {
-  if (config.offlineGambling) {
-    startBot();
-    return;
-  }
-
-  getStreamStatus()
-    .then(({ online, viewerCount }) => {
-      if (online) {
-        if (viewerCount >= config.minViewerCount) {
-          startBot();
-        } else {
-          stopBot();
-        }
-      } else {
-        stopBot();
-      }
-    })
-    .catch((error) => {
-      console.error('Error checking streamer status:', error);
-    });
-}
-setInterval(checkStreamerStatus, 1000);
-
-function getViewerCount() {
-  const twitchApiEndpoint = `https://api.twitch.tv/helix/streams?user_login=${config.targetUser}`;
-
-  const options = {
-    headers: {
-      'Client-Id': process.env.TWITCH_CLIENT_ID,
-      'Authorization': `Bearer ${process.env.TWITCH_AUTHORIZATION}`,
-    },
-  };
-
-  return new Promise((resolve, reject) => {
-    https.get(twitchApiEndpoint, options, (response) => {
-      let data = '';
-
-      response.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      response.on('end', () => {
-        try {
-          const streamData = JSON.parse(data);
-
-          if (streamData.data && streamData.data.length > 0) {
-            // Streamer is online
-            const viewerCount = streamData.data[0].viewer_count;
-            resolve(viewerCount);
-          } else {
-            // Streamer is offline
-            resolve(0);
-          }
-        } catch (error) {
-          reject(error);
-        }
-      });
-    }).on('error', (error) => {
-      reject(error);
-    });
-  });
-}
-
-function logViewerCount() {
-  getViewerCount()
-    .then((viewerCount) => {
-      const color = viewerCount > 0 ? '#00FF00' : '#FF0000';
-      customLog(`Viewer Count: ${viewerCount}`, color); // Log the viewer count
-    })
-    .catch((error) => {
-      console.error('Error checking viewer count:', error);
-    });
-}
-setInterval(logViewerCount, config.viewerCountLogInterval * 1000);
-
 
 process.on('SIGINT', () => {
   // App termination to save the balance
