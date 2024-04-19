@@ -162,13 +162,6 @@ function sendMessage(message) {
     });
 }
 
-// Test sending the slots message directly
-function testSendSlotsMessage() {
-  console.log("Directly testing slots message sending...");
-  sendMessage(config.slotMessage);
-}
-
-
 function startCountdown(action, message, minInterval, maxInterval, color) {
   getStreamStatus().then(({ online }) => {
           const intervalInSeconds = online ? getRandomInterval(minInterval * 60, maxInterval * 60) : getRandomInterval(minInterval * 60, maxInterval * 60);
@@ -207,82 +200,11 @@ function startGambling() {
 }
 
 function startSlots() {
-  console.log("Preparing to start slots...");
   setTimeout(() => {
-      console.log("Directly testing slots message sending...");
-      testSendSlotsMessage(); // Directly test sending the slots message
+      sendMessage(config.slotMessage);
       startCountdown("slots", config.slotMessage, config.minSlotMessageInterval, config.maxSlotMessageInterval, '#00FFFF');
   }, 3000); // Delay to prevent any overlap or conflict
 }
-
-
-// function startGambling() {
-//   getStreamStatus()
-//     .then(({ online }) => {
-//       const intervalInSeconds = online ? getRandomInterval(MIN_INTERVAL, MAX_INTERVAL) : getRandomInterval(MIN_INTERVAL_OFFLINE, MAX_INTERVAL_OFFLINE);
-//       let countdown = Math.floor(intervalInSeconds); // Ensure it's an integer
-
-//       console.log(`Starting countdown at ${countdown} seconds.`); // Initial countdown time
-
-//       const countdownInterval = setInterval(() => {
-//         const minutes = Math.floor(countdown / 60);
-//         const seconds = countdown % 60;
-
-//         // Debugging output to verify interval functionality
-//         console.log(`Debug: ${countdown} seconds left (${minutes}m ${seconds}s)`);
-
-
-//         // Log at specific intervals: every 5 seconds when more than 10 seconds remain, every second in the last 10 seconds.
-//         if ((countdown > 10 && countdown % 5 === 0) || countdown <= 10) {
-//           customLog(`${minutes}m ${seconds}s until next gamble`, '#ffff00');
-//         }
-
-//         countdown -= 1;
-
-//        // If countdown ends, clear interval, send message, and restart the gambling process.
-//         if (countdown < 0) {
-//           clearInterval(countdownInterval);
-//           sendMessage(config.message); // Send Gamble message
-//           startGambling(); // Restart gambling process
-//         }
-//       }, 1000);
-//     })
-//     .catch((error) => {
-//       console.error('Error checking streamer status:', error);
-//     });
-// }
-
-// function startSlots() {
-//     customLog(`Starting Slots...`, '#0000FF');
-
-//     setTimeout(() => {
-//       sendMessage(config.slotMessage);
-//     }, 4000);
-
-//     let slotInterval = getRandomInterval(config.minSlotMessageInterval * 1000 * 60, config.maxSlotMessageInterval * 1000 * 60);
-
-//     if (!botEnabled) {
-//       clearInterval(countdownInterval);
-//     }
-
-//     const countdownInterval = setInterval(() => {
-//       if (botEnabled && config.gamblingEnabled) {
-//         const minutes = Math.floor(slotInterval / 60000); // Convert milliseconds to minutes
-//         const seconds = ((slotInterval % 60000) / 1000).toFixed(0); // Calculate remaining seconds
-
-//         if (seconds % 5 === 0 || seconds <= 10) {
-//           customLog(`${minutes}m ${seconds}s until slots`, '#00FFFF');
-//         }
-
-//         if (slotInterval <= 0) {
-//           customLog(`Sending slot message: ${config.slotMessage}`, '#00FFFF');
-//           sendMessage(config.slotMessage);
-//           slotInterval = config.slotMessageInterval * 60 * 1000;
-//         }
-//         slotInterval -= 1000;
-//       }
-//     }, 1000);
-// }
 
 function checkAndAcceptDuel(username, message) {
   const lowercaseMsg = message.toLowerCase();
