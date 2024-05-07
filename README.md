@@ -14,16 +14,19 @@ TWITCH_AUTHORIZATION=
 
 ### 3. Create Twitch application
 Create application on https://dev.twitch.tv/ 
+
 Inside your `.env` fill in `TWITCH_CLIENT_ID` from your application.
 
 #### 4. Get OAUTH_CODE 
 Use https://twitchapps.com/tmi/ to generate an `OAUTH_CODE`
+
 *Make sure you are logged into the twitch account that you want to use as the bot.*
 
 
 
 #### 5. Get TWITCH_AUTHORIZATION
 Replace `[TWITCH_CLIENT_ID]` and `[YOUR SECRET KEY]` with details from your application
+
 and run the command below into a terminal window to receive your `TWITCH_AUTHORIZATION` 
 ```
 curl -X POST 'https://id.twitch.tv/oauth2/token' \
