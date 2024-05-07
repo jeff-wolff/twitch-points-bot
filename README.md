@@ -4,7 +4,7 @@ Utilizes tmi.js (a twitch js library) for messaging and Twitch's API to check st
 ### Install dependences
 `npm install`
 
-## Create and configure .env file
+### Create and configure .env file
 ```
 OAUTH_CODE=oauth:  
 TWITCH_CLIENT_ID=
