@@ -1,5 +1,5 @@
 # twitch-points-bot
-Utilizes tmi.js (a twitch js library) for messaging and Twitch's API to check stream status & viewers.
+Utilizes tmi.js (a twitch js library) for messaging and Twitch's API (for checking stream status & viewers).
 
 ### 1. Install dependences
 `npm install`
