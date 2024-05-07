@@ -20,7 +20,7 @@ Inside your `.env` fill in `TWITCH_CLIENT_ID` from your application.
 #### 4. Get OAUTH_CODE 
 Use https://twitchapps.com/tmi/ to generate an `OAUTH_CODE`
 
-*Make sure you are logged into the twitch account that you want to use as the bot.*
+__*Make sure you are logged into the twitch account that you want to use as the bot.*__
 
 
 
