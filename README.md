@@ -1,5 +1,5 @@
 # twitch-points-bot
-Utilizes tmi.js (for connecting to Twitch's IRC chat) for messaging and Twitch's API (for checking stream status & viewers).
+Utilizes tmi.js (for connecting to Twitch's IRC chat) and Twitch's API (for checking stream status & viewers).
 
 ### 1. Install dependences
 `npm install`
