@@ -11,13 +11,13 @@ TWITCH_CLIENT_ID=
 TWITCH_AUTHORIZATION=
 ```
 
-Get OAUTH_CODE 
+#### Get OAUTH_CODE 
 
 Use: https://twitchapps.com/tmi/ to generate
 
 Create application on https://dev.twitch.tv/
 
-Get TWITCH_AUTHORIZATION:
+#### Get TWITCH_AUTHORIZATION:
 ```
 curl -X POST 'https://id.twitch.tv/oauth2/token' \
 -H 'Content-Type: application/x-www-form-urlencoded' \
