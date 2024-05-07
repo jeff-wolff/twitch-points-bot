@@ -25,7 +25,7 @@ __*Make sure you are logged into the Twitch account that you want to use as the 
 
 
 #### 5. Get TWITCH_AUTHORIZATION
-Replace `[TWITCH_CLIENT_ID]` and `[YOUR SECRET KEY]` with details from your application
+Replace [TWITCH_CLIENT_ID] and [YOUR SECRET KEY] with details from your application
 
 and run the command below into a terminal window to receive your `TWITCH_AUTHORIZATION` 
 ```
