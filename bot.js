@@ -14,7 +14,7 @@ const balanceInfo = {
   profit: 0
 };
 
-const intervals = {};
+let intervals = {};
 
 const options = {
   options: { debug: false },
@@ -32,7 +32,7 @@ loadBalance(balanceInfo);
 client.on('connected', (address, port) => {
   customLog(`Connected to ${address}:${port}`, '#00FF00');
 
-  if (config.gamblingEnabled) {    
+  if (config.gamblingEnabled || config.offlineGambling) {    
     startGambling();
     if (config.startSlots) {
         startSlots();
@@ -76,7 +76,7 @@ client.on('whisper', (from, userstate, message, self) => {
           balanceInfo.losses++;
         }
 
-        customLog(`New balance: ${balanceInfo.currentBalance.toLocaleString()} points | Total W/L: ${balanceInfo.wins}/${balanceInfo.losses} | Session Profit: ${balanceInfo.profit}`, '#ff00ff');
+        customLog(`New balance: ${balanceInfo.currentBalance.toLocaleString()} points | Total W/L: ${balanceInfo.wins}/${balanceInfo.losses} | Session Profit: ${balanceInfo.profit.toLocaleString()}`, '#ff00ff');
         customLog(`Gamble outcome: ${outcome}`, outcome === 'won' ? '#00FF00' : '#FF0000');
         saveBalance(balanceInfo);
       }
@@ -126,7 +126,7 @@ function sendMessage(message) {
 }
 
 function startCountdown(action, message, minInterval, maxInterval, color) {
-  getStreamStatus().then(({ online }) => {
+  twitchManager.getStreamStatus(config).then(({ online }) => {
           const intervalInSeconds = online ? getRandomInterval(minInterval * 60, maxInterval * 60) : getRandomInterval(minInterval * 60, maxInterval * 60);
           let countdown = Math.floor(intervalInSeconds);
 
@@ -138,7 +138,7 @@ function startCountdown(action, message, minInterval, maxInterval, color) {
               const minutes = Math.floor(countdown / 60);
               const seconds = countdown % 60;
 
-              if ((countdown > 10 && countdown % 5 === 0) || countdown <= 10) {
+              if ((countdown > 10 && countdown % 10 === 0) || (countdown <= 10 && countdown > 0)) {
                   customLog(`[${action}] ${minutes}m ${seconds}s`, color);
               }
 
@@ -167,7 +167,6 @@ function startSlots() {
       startCountdown("slots", config.slotMessage, config.minSlotMessageInterval, config.maxSlotMessageInterval, '#0000FF');
   }, 3000); // Delay to prevent any overlap or conflict with Gambling
 }
-
 
 function checkAndAcceptDuel(username, message) {
   const lowercaseMsg = message.toLowerCase();

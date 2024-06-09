@@ -28,7 +28,7 @@ function startBalanceLog(balanceInfo) {
     const totalGames = balanceInfo.wins + balanceInfo.losses;
     const winLossPercentage = totalGames === 0 ? 0 : ((balanceInfo.wins / totalGames) * 100).toFixed(2);
 
-    customLog(`${balanceInfo.currentBalance.toLocaleString()} | Total W/L: ${balanceInfo.wins}/${balanceInfo.losses} | Total W/L %: ${winLossPercentage}% | Session Profit: ${balanceInfo.profit}`, '#ff00ff');
+    customLog(`${balanceInfo.currentBalance.toLocaleString()} | Total W/L: ${balanceInfo.wins}/${balanceInfo.losses} | Total W/L %: ${winLossPercentage}% | Session Profit: ${balanceInfo.profit.toLocaleString()}`, '#ff00ff');
   }, config.balanceLogInterval * 1000);
 }
 

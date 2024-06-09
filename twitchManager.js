@@ -49,7 +49,11 @@ const twitchManager = {
             stopBot();
           }
         } else {
-          stopBot();
+          if (config.offlineGambling) {
+            startBot();
+          } else {
+            stopBot();
+          }
         }
       })
       .catch((error) => {
