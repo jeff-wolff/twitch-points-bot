@@ -1,7 +1,7 @@
 const config = {
 
-  username: 'xhila', // your username
-  targetUser: 'bradley_dragon', // the channel you're chatting in
+  username: 'XXX', // your username
+  targetUser: 'XXX', // the channel you're chatting in
   
   minViewerCount: 20, // mininum number of viewers for bot to be active
   gamblingEnabled: true, // Enable/disable gambling all together (wil still respond to duels)
